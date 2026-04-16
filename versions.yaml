@@ -1,0 +1,24 @@
+version: "0.18.0"
+
+kata:
+  registry: "ghcr.io"
+  repository: "kata-containers/cached-artefacts"
+  version: "3.28.0"
+
+artifacts:
+  - name: kernel
+    reference_value_uri: "rvps:///github.com/confidential-containers/tdx/kernel"
+    arch: x86_64
+    calculator_url: "https://raw.githubusercontent.com/confidential-containers/td-shim/28bfa349f59a2d8da580e032c6fdcd79abd30824/td-shim-tools/src/bin/td-payload-reference-calculator/td_payload_qemu_hash.py"
+    runtime: "python3"
+    args:
+      - "-k"
+      - "./opt/kata/share/kata-containers/vmlinuz.container"
+  - name: ovmf-tdx
+    arch: x86_64
+    reference_value_uri: "rvps:///github.com/confidential-containers/tdx/mr_td"
+    calculator_url: "https://raw.githubusercontent.com/confidential-containers/td-shim/28bfa349f59a2d8da580e032c6fdcd79abd30824/td-shim-tools/src/bin/td-shim-tee-info-hash/td_shim_tee_info_hash.py"
+    runtime: "python3"
+    args:
+      - "-i"
+      - "opt/kata/share/ovmf/OVMF.inteltdx.fd"
