@@ -1,0 +1,77 @@
+name: Build Reference Values For CoCo Release
+
+on:
+  workflow_call:
+  release:
+    types: [published]
+
+jobs:
+  build-reference-values:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6 # v1.2.4
+        with:
+          version: "1.2.0"
+
+      - name: Build reference values JSON
+        run: |
+          CONFIG_PATH="versions.yaml"
+          OUTPUT_PATH="results/reference-values.json"
+          mkdir -p "$(dirname "$OUTPUT_PATH")"
+          python3 release.py "$CONFIG_PATH" "$OUTPUT_PATH"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-values-json
+          path: results/reference-values.json
+          if-no-files-found: error
+
+      - name: Compute subject digest
+        id: subject
+        run: |
+          DIGEST="$(sha256sum results/reference-values.json | awk '{print $1}')"
+          SUBJECT_NAME="ghcr.io/${{ github.repository_owner }}/reference-values"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "name=${SUBJECT_NAME}" >> "$GITHUB_OUTPUT"
+
+      # for pushing attestations to the registry
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate SLSA attestation for reference values manifest
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.subject.outputs.name }}
+          subject-digest: sha256:${{ steps.subject.outputs.digest }}
+          push-to-registry: true
+
+      - name: Upload JSON to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          OUTPUT_PATH: results/reference-values.json
+        run: |
+          gh release upload "$RELEASE_TAG" "$OUTPUT_PATH" --clobber
