@@ -12,6 +12,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Checkout repository
@@ -38,6 +39,15 @@ jobs:
           mkdir -p "$(dirname "$OUTPUT_PATH")"
           python3 release.py "$CONFIG_PATH" "$OUTPUT_PATH"
 
+      - name: Generate SBOM (SPDX JSON)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: results/sbom.spdx.json
+          upload-artifact: true
+          upload-release-assets: true
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -45,10 +55,24 @@ jobs:
           path: results/reference-values.json
           if-no-files-found: error
 
-      - name: Generate SLSA attestation for reference values manifest
-        uses: actions/attest-build-provenance@v2
+      - name: Generate SLSA provenance attestation
+        id: attest_provenance
+        uses: actions/attest@v4
         with:
           subject-path: results/reference-values.json
+
+      - name: Generate SBOM attestation
+        id: attest_sbom
+        uses: actions/attest@v4
+        with:
+          subject-path: results/reference-values.json
+          sbom-path: results/sbom.spdx.json
+
+      - name: Collect attestation bundles for release
+        run: |
+          mkdir -p results/attestations
+          cp "${{ steps.attest_provenance.outputs.bundle-path }}" results/attestations/provenance.attestation.jsonl
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" results/attestations/sbom.attestation.jsonl
 
       - name: Upload JSON to GitHub Release
         if: github.event_name == 'release'
@@ -56,5 +80,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           OUTPUT_PATH: results/reference-values.json
+          SBOM_PATH: results/sbom.spdx.json
+          PROVENANCE_BUNDLE_PATH: results/attestations/provenance.attestation.jsonl
+          SBOM_BUNDLE_PATH: results/attestations/sbom.attestation.jsonl
         run: |
           gh release upload "$RELEASE_TAG" "$OUTPUT_PATH" --clobber
+          gh release upload "$RELEASE_TAG" "$SBOM_PATH" --clobber
+          gh release upload "$RELEASE_TAG" "$PROVENANCE_BUNDLE_PATH" --clobber
+          gh release upload "$RELEASE_TAG" "$SBOM_BUNDLE_PATH" --clobber

@@ -10,6 +10,7 @@ It pulls Kata artifacts from OCI registry, unpacks the expected payload, runs ca
 - Reproducibly calculate reference values from CoCo-related artifacts
 - Upload generated reference values as workflow artifacts and release assets
 - Generate SLSA build provenance attestation for the output JSON
+- Generate SBOM of the building provenances
 
 ## How It Works
 
