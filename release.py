@@ -130,9 +130,8 @@ def main(config_path, output_path):
     if not artifacts:
         raise RuntimeError("No artifacts configured in versions.yaml.")
 
-    registry = kata["registry"]
-    repository = kata["repository"]
-    kata_version = str(kata["version"])
+    oci_base = kata["oci"].rstrip("/")
+    kata_tag = str(kata["tag"])
 
     work_dir = pathlib.Path(config_path).resolve().parent / ".work"
     pulls_dir = work_dir / "pulls"
@@ -153,9 +152,15 @@ def main(config_path, output_path):
         args = artifact.get("args", [])
         LOG.info("Processing artifact: %s (arch=%s)", artifact_name, artifact_arch)
 
-        oras_reference = (
-            f"{registry}/{repository}/{artifact_name}:{kata_version}-{artifact_arch}"
-        )
+        oras_digest = str(artifact["oras_sha256"]).strip()
+        if not oras_digest:
+            raise RuntimeError(
+                f"Artifact '{artifact_name}' is missing required field 'oras_sha256'."
+            )
+        if not oras_digest.startswith("sha256:"):
+            oras_digest = f"sha256:{oras_digest}"
+
+        oras_reference = f"{oci_base}/{artifact_name}@{oras_digest}"
         pulled_dir = pulls_dir / artifact_name
         ensure_clean_dir(pulled_dir)
         run_oras_pull(oras_reference, pulled_dir)
@@ -182,7 +187,7 @@ def main(config_path, output_path):
                 "extract_dir": str(extract_dir),
                 "name": artifact_name,
                 "arch": artifact_arch,
-                "kata_version": kata_version,
+                "kata_version": kata_tag,
             },
         )
         stdout = run_tool(runtime, tool_path, rendered_args, extract_dir)

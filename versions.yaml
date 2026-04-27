@@ -1,22 +1,28 @@
 version: "0.18.0"
 
 kata:
-  registry: "ghcr.io"
-  repository: "kata-containers/cached-artefacts"
-  version: "3.28.0"
+  oci: "ghcr.io/kata-containers/cached-artefacts"
+  tag: "3.28.0"
+  revision: "28bfa349f59a2d8da580e032c6fdcd79abd30824"
+  source_repository: "kata-containers/kata-containers"
+  workflow_digest: "28bfa349f59a2d8da580e032c6fdcd79abd30824"
+  workflow_trigger: "push"
 
 artifacts:
   - name: kernel
     reference_value_uri: "rvps:///github.com/confidential-containers/tdx/kernel"
     arch: x86_64
+    oras_sha256: "sha256:9788e24429cfc94dd0df861443bcde70d048f2c658d898390b16056c12384f0f"
     calculator_url: "https://raw.githubusercontent.com/confidential-containers/td-shim/28bfa349f59a2d8da580e032c6fdcd79abd30824/td-shim-tools/src/bin/td-payload-reference-calculator/td_payload_qemu_hash.py"
     runtime: "python3"
     args:
       - "-k"
       - "./opt/kata/share/kata-containers/vmlinuz.container"
+
   - name: ovmf-tdx
     arch: x86_64
     reference_value_uri: "rvps:///github.com/confidential-containers/tdx/mr_td"
+    oras_sha256: "sha256:8c29324879f738e9e294e35287a880ae0f4ff153300dbf44b53bfaabdd9dc73f"
     calculator_url: "https://raw.githubusercontent.com/confidential-containers/td-shim/28bfa349f59a2d8da580e032c6fdcd79abd30824/td-shim-tools/src/bin/td-shim-tee-info-hash/td_shim_tee_info_hash.py"
     runtime: "python3"
     args:
