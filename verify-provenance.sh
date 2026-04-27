@@ -90,6 +90,22 @@ if [ "$github" != "1" ]; then
 		| .digest
 	')
 
+	# If referrers discovery does not return a bundle digest (layout/permissions/compat
+	# differences), fall back to GitHub API-based download when GH_TOKEN is available.
+	if [ -z "$attestation_manifest_digest" ] || [ "$attestation_manifest_digest" = "null" ]; then
+		if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+			echo "No attestation referrer found via oras discover, falling back to gh attestation download"
+			gh attestation download "oci://${oci_artifact}" -R "$repository"
+			github="1"
+		else
+			echo "Failed to discover attestation manifest digest for ${oci_artifact}"
+			echo "Hint: provide GH_TOKEN/GITHUB_TOKEN and use -g to fetch bundle via GitHub API"
+			exit 1
+		fi
+	fi
+fi
+
+if [ "$github" != "1" ]; then
 	oci_base="${oci_artifact%@*}"
 	attestation_manifest="${oci_base}@${attestation_manifest_digest}"
 
